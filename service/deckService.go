@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type DeckService interface {
@@ -51,16 +53,23 @@ func (d *deckService) GetDecks(w http.ResponseWriter, r *http.Request) {
 func (d *deckService) CreateCards(w http.ResponseWriter, r *http.Request) {
 	var cards []domain.Card
 	specificCards := r.FormValue("cards")
+	shuffled := r.FormValue("shuffled")
 	if specificCards != "" {
 		cardsSlice := strings.Split(specificCards, ",")
 		cards = createSpecificCardsObject(cardsSlice)
 	} else {
 		cards = createCardsObject()
 	}
-
+	if shuffled == "true" {
+		cards = shuffleCards(cards)
+	}
 	var deck = domain.Deck{
 		Shuffled: false,
 		Cards:    cards,
+	}
+	if shuffled == "true" {
+		deck.Cards = shuffleCards(deck.Cards)
+		deck.Shuffled = true
 	}
 	d.dbInstance.Save(&deck)
 
@@ -167,6 +176,17 @@ func createSpecificCardsObject(codes []string) []domain.Card {
 		println(card.Code)
 	}
 	return cards
+}
+
+func shuffleCards(cards []domain.Card) []domain.Card {
+	final := make([]domain.Card, len(cards))
+	rand.Seed(time.Now().UTC().UnixNano())
+	perm := rand.Perm(len(cards))
+
+	for i, v := range perm {
+		final[v] = cards[i]
+	}
+	return final
 }
 
 func validateCode(code string) {
